@@ -28,3 +28,19 @@ To browse snapshots, check instead out the corresponding commit (i.e., enter a d
 
 Apart from not doing `checkout` on snapshot branches, they work as usual. I.e., you can use, e.g., `git diff snapshots/BRANCH/othercomp` to see how they differ, and merge changes from them if desired.
 
+## Advanced use
+
+You can see some other features by:
+``
+git snap help
+``
+
+But, in short, you can also do:
+
+- `git snap make <snapshot branch>`
+
+    Creates a snapshot on the specified `<snapshot branch>`, which doesn't need to follow the naming conventions used by just calling `git snap`.
+
+- `git snap push <snapshot branch> <remote>`
+
+    Pushes the contents of `<snapshot branch>` to the `<remote>`, handling `--set-upstream` and a few other minor details that makes sense specifically for snapshots.

@@ -7,9 +7,9 @@ if [ "$1" == "describe" ]; then
    exit 0
 elif [ "$1" == "help" -o "$#" -lt 2 -o "$#" -gt 2 ]; then
     echo
-    echo "Usage: git snap push <branch> <remote>"
+    echo "Usage: git snap push <snapshot branch> <remote>"
     echo
-    echo "Push snapshots in branch <branch> to the remote <remote>."
+    echo "Push snapshots in a snapshot branch <snapshot branch> to the remote <remote>."
     echo
     exit 0
 fi

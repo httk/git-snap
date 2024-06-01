@@ -7,7 +7,7 @@ if [ "$1" == "describe" ]; then
    exit 0
 elif [ "$1" == "help" -o "$#" -lt 1 -o "$#" -gt 1 ]; then
     echo
-    echo "Usage: git snap <snapshot branch>"
+    echo "Usage: git snap make <snapshot branch>"
     echo
     echo "Create a snapshot of the current branch into <snapshot branch>."
     echo
