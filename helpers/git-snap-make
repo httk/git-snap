@@ -1,0 +1,100 @@
+#!/bin/bash
+
+set -e
+
+if [ "$1" == "describe" ]; then
+   echo "Take a snapshot of the current branch."
+   exit 0
+elif [ "$1" == "help" -o "$#" -lt 1 -o "$#" -gt 1 ]; then
+    echo
+    echo "Usage: git snap <snapshot branch>"
+    echo
+    echo "Create a snapshot of the current branch into <snapshot branch>."
+    echo
+    exit 0
+fi
+
+SNAPSHOT_BRANCH="$1"
+
+GIT_TOP_LEVEL=$(git rev-parse --show-toplevel)
+cd "$GIT_TOP_LEVEL"
+MAIN_GIT_DIR=$(git rev-parse --git-dir)
+SNAPSHOT_GIT_DIR="${MAIN_GIT_DIR}/worktrees/snapshot"
+SNAPSHOT_WORKTREE="${MAIN_GIT_DIR}/x-snapshots/worktree/snapshot"
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref main-worktree/HEAD)
+LAST_COMMIT=$(git rev-parse HEAD)
+HOSTNAME="$(hostname)"
+
+if [ -z "$SNAPSHOT_BRANCH" ]; then
+    SNAPSHOT_BRANCH="snapshots/${CURRENT_BRANCH}/${HOSTNAME}"
+fi
+
+if [ ! -e "${SNAPSHOT_WORKTREE}" ]; then
+    echo "== Setting up snapshot worktree"
+    mkdir -p "${MAIN_GIT_DIR}/x-snapshots/worktree"
+
+    git worktree add "${SNAPSHOT_WORKTREE}" -b "${SNAPSHOT_BRANCH}" --no-checkout
+    # Consider instead creating an orphan branch instead. I'm unsure about the differences it will cause,
+    # but it seems to increase time for first sync a lot.
+    #
+    # git worktree add "${MAIN_GIT_DIR}/x-snapshots/worktree/snapshot" --no-checkout
+    # git -C "${MAIN_GIT_DIR}/x-snapshots/worktree/snapshot" switch --orphan "${SNAPSHOT_BRANCH}"
+    #
+    git -C "${SNAPSHOT_WORKTREE}" commit -m "git-snap initial ${HOSTNAME} ${CURRENT_BRANCH} inital" --allow-empty --no-gpg-sign
+fi
+
+#echo "== Make sure nothing is staged in snapshot worktree"
+#git -C "${SNAPSHOT_WORKTREE}" reset
+
+echo "== Switching snapshot worktree to same branch as main worktree: $CURRENT_BRANCH"
+git  -C "${SNAPSHOT_WORKTREE}" symbolic-ref HEAD "refs/heads/$SNAPSHOT_BRANCH"
+#git -C "${SNAPSHOT_WORKTREE}" checkout $(git --git-dir "${SNAPSHOT_GIT_DIR}" show-ref --verify --quiet "refs/heads/$SNAPSHOT_BRANCH" || echo '-b') "$SNAPSHOT_BRANCH"
+
+echo "== Merging latest main worktree commits into snapshot worktree"
+git -C "${SNAPSHOT_WORKTREE}" merge main-worktree/HEAD -s ours --no-ff --no-gpg-sign -m "git-snap merge ${HOSTNAME} ${CURRENT_BRANCH} $(date -R)" --allow-unrelated-histories
+
+echo "== Determine if current workdir is a clean or dirty state"
+CHANGE=$(git --git-dir "${SNAPSHOT_GIT_DIR}" diff --shortstat main-worktree/HEAD)
+if [ -z "$CHANGE" ]; then
+    CLEAN="clean"
+else
+    CHANGE='
+
+    '"$CHANGE"
+    CLEAN="unclean"
+fi
+
+echo "== Stage all modifications into snapshot worktree"
+git --git-dir "${SNAPSHOT_GIT_DIR}" add -A
+
+sleep 1
+echo "== Double check if branch has changed"
+if [ "$CURRENT_BRANCH" != "$(git rev-parse --abbrev-ref main-worktree/HEAD)" ]; then
+    echo "ERROR: local branch has changed while working, try again (and don't change branch while git-snap is running)."
+    exit 1
+fi
+
+if [ -n "$(git --git-dir "${SNAPSHOT_GIT_DIR}" diff --name-only --cached)" ]; then
+    echo "== Commiting changes"
+    git --git-dir "${SNAPSHOT_GIT_DIR}" commit -m "git-snap commit ${HOSTNAME} ${CURRENT_BRANCH} ${LAST_COMMIT} ${CLEAN} ${CHANGE}" --no-gpg-sign
+#else
+#
+#    LAST_MSG=$(git --git-dir "${SNAPSHOT_GIT_DIR}" log -1 --pretty=%B | head -n 1)
+#    LAST_SNAP_CLIENT=$(cut -d ' ' -f 1 <<< "$LAST_MSG")
+#    if [ "$LAST_SNAP_CLIENT" == "git-snap" ]; then
+#        LAST_SNAP_BRANCH=$(cut -d ' ' -f 4 <<< "$LAST_MSG")
+#        LAST_SNAP_COMMIT=$(cut -d ' ' -f 5 <<< "$LAST_MSG")
+#        if [ "$LAST_SNAP_BRANCH" != "$CURRENT_BRANCH" -o "$LAST_COMMIT" != "$LAST_SNAP_COMMIT" ]; then
+#            echo "== Commiting empty due to branch or top commit change"
+#            git --git-dir "${SNAPSHOT_GIT_DIR}" commit --allow-empty -m "git-snap commit ${HOSTNAME} ${CURRENT_BRANCH} ${LAST_COMMIT} ${CLEAN} ${CHANGE}" --no-gpg-sign
+#        else
+#            echo "== No changes to commit"
+#        fi
+#    else
+#        echo "== Committing empty commit due to unparseable previous message"
+#        git --git-dir "${SNAPSHOT_GIT_DIR}" commit --allow-empty -m "git-snap commit ${HOSTNAME} ${CURRENT_BRANCH} ${LAST_COMMIT} ${CLEAN} ${CHANGE}" --no-gpg-sign
+#    fi
+
+fi
+
+exit 0

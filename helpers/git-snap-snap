@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -e
+
+if [ "$1" == "describe" ]; then
+   echo "Shortcut to make a snapshot of the current branch into a snapshot branch 'snapshots/<current branch>/<hostname>' and push it to the remote named 'snaps'."
+   exit 0
+elif [ "$1" == "help" ]; then
+    echo
+    echo "Usage: git snap"
+    echo
+    echo "Make a snapshot of the repository and push it to the remote named 'snapshots'."
+    echo
+    exit 0
+fi
+
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref main-worktree/HEAD)
+HOSTNAME="$(hostname)"
+SNAPSHOT_BRANCH="snapshots/${CURRENT_BRANCH}/${HOSTNAME}"
+MAIN_GIT_DIR=$(git rev-parse --git-dir)
+SNAPSHOT_GIT_DIR="${MAIN_GIT_DIR}/worktrees/snapshot"
+
+git-snap-make "${SNAPSHOT_BRANCH}"
+UPSTREAM="$(git for-each-ref --format='%(upstream:short)' "$(git rev-parse -q --symbolic-full-name ${SNAPSHOT_BRANCH})")"
+if [ -z "$UPSTREAM" -o -n "$(git --git-dir "${SNAPSHOT_GIT_DIR}" cherry "snaps/${SNAPSHOT_BRANCH}" | head -n 1)" ]; then
+    git-snap-push "${SNAPSHOT_BRANCH}" snaps
+else
+    echo "== No commits to push to remote"
+fi

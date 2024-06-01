@@ -1,0 +1,43 @@
+#!/bin/bash
+
+set -e
+
+if [ "$1" == "describe" ]; then
+   echo "Push snapshots in a branch to a remote."
+   exit 0
+elif [ "$1" == "help" -o "$#" -lt 2 -o "$#" -gt 2 ]; then
+    echo
+    echo "Usage: git snap push <branch> <remote>"
+    echo
+    echo "Push snapshots in branch <branch> to the remote <remote>."
+    echo
+    exit 0
+fi
+
+BRANCH="$1"
+REMOTE="$2"
+
+GIT_TOP_LEVEL=$(git rev-parse --show-toplevel)
+cd "$GIT_TOP_LEVEL"
+MAIN_GIT_DIR=$(git rev-parse --git-dir)
+SNAPSHOT_GIT_DIR="${MAIN_GIT_DIR}/worktrees/snapshot"
+
+UPSTREAM="$(git for-each-ref --format='%(upstream:short)' "$(git rev-parse -q --symbolic-full-name ${BRANCH})")"
+
+if [ -z "$UPSTREAM" ]; then
+    echo "== Upstream branch not set, pushing with --set-upstream"
+    echo git --git-dir "${SNAPSHOT_GIT_DIR}" push --follow-tags --set-upstream "${REMOTE}" "${BRANCH}"
+    git --git-dir "${SNAPSHOT_GIT_DIR}" push --follow-tags --set-upstream "${REMOTE}" "${BRANCH}"
+
+else
+
+    if [ -n "$(git --git-dir "${SNAPSHOT_GIT_DIR}" cherry "${REMOTE}/${BRANCH}" | head -n 1)" ]; then
+        echo "== Changes made, pushing to remote"
+        git --git-dir "${SNAPSHOT_GIT_DIR}" push --follow-tags
+    else
+        echo "== No commits to push to remote"
+    fi
+
+fi
+
+exit 0

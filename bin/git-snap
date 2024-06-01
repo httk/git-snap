@@ -1,0 +1,65 @@
+#!/bin/bash
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &> /dev/null && pwd -P)
+export HELPER_PATH="${SCRIPT_DIR}/../helpers"
+export PATH="${HELPER_PATH}:$PATH"
+
+MODE="$1"
+shift 1
+
+if [ -z "$MODE" ]; then
+    MODE="snap"
+fi
+
+if [ "$MODE" == "help" -o "$MODE" == "--help" -o "$MODE" == "-h" -o \( "$MODE" != "confdir" -a ! -e "${HELPER_PATH}"/"git-snap-${MODE}" \) ]; then
+    if [ -z "$1" ]; then
+        # handle: git snap help and git snap <non-existing mode>
+        echo
+        echo "git-snap - git plugin for repository snapshots."
+        echo
+        echo "Usage:    git snap [snap args]"
+        echo "          git snap <mode> [mode args]"
+        echo
+        echo "Main mode (git snap):"
+        echo
+        DESC=$(git-snap-snap describe)
+        echo "  ${DESC}"
+        echo
+        echo "Other modes (git snap <mode>):"
+        echo
+        HELPERS=$(ls "${HELPER_PATH}"/git-snap-* | sort)
+        for HELPER in $HELPERS; do
+            HELPER_NAME=$(basename "$HELPER")
+            if [ "${HELPER_NAME}" == "git-snap-snap" -o "${HELPER%*~}" != "${HELPER}" ]; then
+                continue
+            fi
+            DESC=$("$HELPER" describe)
+            echo "  ${HELPER_NAME#git-snap-}:" "${DESC}"
+            echo ""
+        done
+        echo
+        echo "For more info, execute: git-snap help <mode>"
+        echo
+        exit 0
+    else
+        # handle: git snap help <mode>
+        MODE=$2
+        if [ -e "${HELPER_PATH}"/"git-snap-${MODE}" ]; then
+            shift 1
+            "${HELPER_PATH}"/"git-snap-${MODE}" help "$@"
+            exit 0
+        else
+            echo "Unknown mode: ${MODE}"
+            exit 1
+        fi
+    fi
+fi
+
+# handle: git snap <mode> help
+if [ "$1" == "help" -o "$1" == "--help" -o "$1" == "-h" ]; then
+    shift 1
+    "${HELPER_PATH}"/"git-snap-${MODE}" help "$@"
+    exit 0
+fi
+
+exec "${HELPER_PATH}"/"git-snap-${MODE}" "$@"
