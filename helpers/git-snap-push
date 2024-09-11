@@ -14,24 +14,29 @@ elif [ "$1" == "help" -o "$#" -lt 2 -o "$#" -gt 2 ]; then
     exit 0
 fi
 
-BRANCH="$1"
+SNAPSHOT_BRANCH="$1"
+if [ -z "$SNAPSHOT_BRANCH" ]; then
+    SNAPSHOT_BRANCH="snapshots/${CURRENT_BRANCH}/${HOSTNAME}"
+fi
+SNAPSHOT_BRANCH_NAME=$(echo "$SNAPSHOT_BRANCH" | tr '/' '_')
+
 REMOTE="$2"
 
 GIT_TOP_LEVEL=$(git rev-parse --show-toplevel)
 cd "$GIT_TOP_LEVEL"
 MAIN_GIT_DIR=$(git rev-parse --git-dir)
-SNAPSHOT_GIT_DIR="${MAIN_GIT_DIR}/worktrees/snapshot"
+SNAPSHOT_GIT_DIR="${MAIN_GIT_DIR}/worktrees/snapshot_${SNAPSHOT_BRANCH_NAME}"
 
-UPSTREAM="$(git for-each-ref --format='%(upstream:short)' "$(git rev-parse -q --symbolic-full-name ${BRANCH})")"
+UPSTREAM="$(git for-each-ref --format='%(upstream:short)' "$(git rev-parse -q --symbolic-full-name ${SNAPSHOT_BRANCH})")"
 
 if [ -z "$UPSTREAM" ]; then
     echo "== Upstream branch not set, pushing with --set-upstream"
-    echo git --git-dir "${SNAPSHOT_GIT_DIR}" push --follow-tags --set-upstream "${REMOTE}" "${BRANCH}"
-    git --git-dir "${SNAPSHOT_GIT_DIR}" push --follow-tags --set-upstream "${REMOTE}" "${BRANCH}"
+    echo git --git-dir "${SNAPSHOT_GIT_DIR}" push --follow-tags --set-upstream "${REMOTE}" "${SNAPSHOT_BRANCH}"
+    git --git-dir "${SNAPSHOT_GIT_DIR}" push --follow-tags --set-upstream "${REMOTE}" "${SNAPSHOT_BRANCH}"
 
 else
 
-    if [ -n "$(git --git-dir "${SNAPSHOT_GIT_DIR}" cherry "${REMOTE}/${BRANCH}" | head -n 1)" ]; then
+    if [ -n "$(git --git-dir "${SNAPSHOT_GIT_DIR}" cherry "${REMOTE}/${SNAPSHOT_BRANCH}" | head -n 1)" ]; then
         echo "== Changes made, pushing to remote"
         git --git-dir "${SNAPSHOT_GIT_DIR}" push --follow-tags
     else

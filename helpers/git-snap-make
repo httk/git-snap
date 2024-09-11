@@ -15,25 +15,25 @@ elif [ "$1" == "help" -o "$#" -lt 1 -o "$#" -gt 1 ]; then
 fi
 
 SNAPSHOT_BRANCH="$1"
+if [ -z "$SNAPSHOT_BRANCH" ]; then
+    SNAPSHOT_BRANCH="snapshots/${CURRENT_BRANCH}/${HOSTNAME}"
+fi
+SNAPSHOT_BRANCH_NAME=$(echo "$SNAPSHOT_BRANCH" | tr '/' '_')
 
 GIT_TOP_LEVEL=$(git rev-parse --show-toplevel)
 cd "$GIT_TOP_LEVEL"
 MAIN_GIT_DIR=$(git rev-parse --git-dir)
-SNAPSHOT_GIT_DIR="${MAIN_GIT_DIR}/worktrees/snapshot"
-SNAPSHOT_WORKTREE="${MAIN_GIT_DIR}/x-snapshots/worktree/snapshot"
+SNAPSHOT_GIT_DIR="${MAIN_GIT_DIR}/worktrees/snapshot_${SNAPSHOT_BRANCH_NAME}"
+SNAPSHOT_WORKTREE="${MAIN_GIT_DIR}/x-snapshots/worktrees/snapshot_${SNAPSHOT_BRANCH_NAME}"
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref main-worktree/HEAD)
 LAST_COMMIT=$(git rev-parse HEAD)
 HOSTNAME="$(hostname)"
 
-if [ -z "$SNAPSHOT_BRANCH" ]; then
-    SNAPSHOT_BRANCH="snapshots/${CURRENT_BRANCH}/${HOSTNAME}"
-fi
-
 if [ ! -e "${SNAPSHOT_WORKTREE}" ]; then
     echo "== Setting up snapshot worktree"
-    mkdir -p "${MAIN_GIT_DIR}/x-snapshots/worktree"
+    mkdir -p "${MAIN_GIT_DIR}/x-snapshots/worktrees"
 
-    git worktree add "${SNAPSHOT_WORKTREE}" -b "${SNAPSHOT_BRANCH}" --no-checkout
+    git worktree add -b "${SNAPSHOT_BRANCH}" --no-checkout "${SNAPSHOT_WORKTREE}"
     # Consider instead creating an orphan branch instead. I'm unsure about the differences it will cause,
     # but it seems to increase time for first sync a lot.
     #
