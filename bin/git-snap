@@ -38,7 +38,7 @@ if [ "$MODE" == "help" -o "$MODE" == "--help" -o "$MODE" == "-h" -o \( "$MODE" !
             echo ""
         done
         echo
-        echo "For more info, execute: git-snap help <mode>"
+        echo "For more info about the modes, execute: git-snap <mode> help"
         echo
         exit 0
     else
